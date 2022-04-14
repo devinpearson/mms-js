@@ -5,20 +5,20 @@ function log(text) {
 }
 
 function main() {
-  let maze = new Maze();
-  let mouse = new Mouse('n', 0, 0);
+  let mouse = new Mouse('n', 0, 0, new Maze());
   // add Maze ()
   // Maze.cell(x, y)
   log("Running...");
-  API.setColor(0, 0, 'G');
-  API.setText(0, 0, "abc");
-  displayRoute(maze, 0, 0, mouse.direction)
+  //API.setColor(0, 0, 'G');
+  //API.setText(0, 0, "abc");
+  //displayRoute(maze, 0, 0, mouse.direction)
 
   while (true) {
+    
     mouse.next();
     mouse.move();
-    API.setText(1, 0, mouse.x);
-    API.setText(1, 1, mouse.y);
+    
+    log('move (' + mouse.x + ', ' + mouse.y + ')');
   }
 }
 
@@ -81,7 +81,11 @@ function changeCoordinates(direction, x, y) {
 class Maze {
   constructor() {
     this.mazeArray = [];
-    this.prepareFloodfill()
+    this.create()
+    this.floodFill(7, 7, 0);
+    this.floodFill(7, 8, 0);
+    this.floodFill(8, 7, 0);
+    this.floodFill(8, 8, 0);
   }
   
   cell(x, y) {
@@ -90,41 +94,62 @@ class Maze {
 
   floodFill( x, y, value) {
     
-
-    this.floodfill(x + 1, y, value);
-    this.floodFill(x, y + 1, value);
-    this.floodFill(x - 1, y, value);
-    this.floodFill(x, y - 1, value);
+    if (x < 0 || y < 0 || x > 15 || y > 15) {
+      return;
+    }
+    if (this.cell(x, y).value != '-') {
+      return;
+    }
+    log('floodFill (' + x + ', ' + y + ')');
+    this.cell(x, y).value = value;
+    API.setText(x, y, value);
+    value++;
+    if (this.cell(x, y).w == false) {
+      this.floodFill(x - 1, y, value);
+    }
+    if (this.cell(x, y).s == false) {
+      this.floodFill(x, y - 1, value);
+    }
+    if (this.cell(x, y).e == false) {
+      this.floodFill(x + 1, y, value);
+    }
+    if (this.cell(x, y).n == false) {
+      this.floodFill(x, y + 1, value);
+    }
+    
   }
-  
-  prepareFloodfill() {
-    for (let i = 0; i < 16; i++) {
-      this.mazeArray[i] = [];
-      let val2 = 0;
-      if (i > 7) {
-        val2 = 14 + i - 15; 
-      } else {
-        val2 = 14 - i;
-      }
-      for (let j = 0; j < 16; j++) {
-        let val = 0;
-        if (j > 7 ) {
-          val = val2 + j - 15;
-        } else {
-          val = val2 - j;
-        }
-        
-        this.mazeArray[i][j] = new Cell(i, j, val)
-        API.setText(i, j, val);
+
+  create() {
+    for (let x = 0; x < 16; x++) {
+      this.mazeArray[x] = [];
+      for (let y = 0; y < 16; y++) {
+        this.mazeArray[x][y] = new Cell(x, y, '-')
+        API.setText(x, y, '-');
       }
     }
+
+  }
+
+  refresh() {
+    for (let x = 0; x < 16; x++) {
+      for (let y = 0; y < 16; y++) {
+        this.cell(x, y).value = '-'
+        API.setText(x, y, '-');
+      }
+    }
+    this.floodFill(7, 7, 0);
+    this.floodFill(7, 8, 0);
+    this.floodFill(8, 7, 0);
+    this.floodFill(8, 8, 0);
   }
 }
+
 class Mouse {
-    constructor(direction, x, y) {
+    constructor(direction, x, y, maze) {
         this.direction = direction;
         this.x = x;
         this.y = y;
+        this.maze = maze;
         API.setWall(x, y, 's');
     }
 
@@ -186,6 +211,7 @@ class Mouse {
   }
 
   next() {
+    this.maze.refresh();
     let leftAmount = 100;
     let rightAmount = 100;
     let forwardAmount = 100;
@@ -198,13 +224,16 @@ class Mouse {
     
     // mark the walls
     if (API.wallLeft()) {
-      API.setWall(this.x, this.y, currentLeft);
+      this.maze.cell(this.x, this.y).setWall(currentLeft);
+      //API.setWall(this.x, this.y, currentLeft);
     }
     if (API.wallRight()) {
-      API.setWall(this.x, this.y, currentRight);
+      this.maze.cell(this.x, this.y).setWall(currentRight);
+      //API.setWall(this.x, this.y, currentRight);
     }
     if (API.wallFront()) {
-      API.setWall(this.x, this.y, this.direction);
+      this.maze.cell(this.x, this.y).setWall(this.direction);
+      //API.setWall(this.x, this.y, this.direction);
     }
 
     if (!API.wallLeft()) { 
